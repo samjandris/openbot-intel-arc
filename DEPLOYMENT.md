@@ -92,18 +92,19 @@ identified on the target machine. Do not add a primary DRM device, privileged mo
 
 1. Set repository variable `GRAPHICS_ROLLING_APPROVED=false`. Build an immutable candidate with
    GitHub Actions. This leaves the existing `:unraid` tag available for scheduled updates.
-2. In the Docker tab, test that candidate in a separate container with empty temporary `/data`.
-   A tmpfs avoids persistent test profiles. Apply the same seccomp, no-new-privileges, render device
-   and group. Never bind the production data directory into this test container.
-3. Keep the private report and screenshot. Require the actual Intel renderer, hardware compositing,
-   working browser input/navigation and JPEG capture. Check the effective security settings.
+2. Trial the update on the existing `openbot` container only, after the backup below. Do not create
+   a separate test installation. Keep the current image available until all target-machine checks pass.
+3. Define the acceptance checks before replacement: the actual Intel renderer, hardware compositing,
+   working browser input/navigation, correct screenshots and JPEG capture, and effective security settings.
 4. Privately save the complete current container/image inspect, template, seccomp, autostart and
    updater configuration. Give the current working image a local rollback tag and record its digest.
+   Unraid may remove all tags on the old image during force-update. Keep its immutable registry
+   digest available, then check and restore the local rollback tag after the update if needed.
 5. Run `scripts/backup.sh NEW_PRIVATE_BACKUP_DIRECTORY` on the server. It stops only `openbot`,
    archives all of `/data`, compares the archive with the stopped source, tests gzip and verifies
    SHA256. The destination must be outside `/data`. Success deliberately leaves OpenBot stopped
    for immediate replacement. Failure attempts to restart the working container.
-6. Run the **Promote a reviewed image digest** workflow with the exact tested digest. Do not rebuild
+6. Run the **Promote a reviewed image digest** workflow with the exact CI-tested digest. Do not rebuild
    between review and promotion. In the Docker tab, force-update only `openbot`, then start it if
    Unraid retained its stopped state. Verify the managed template still has all required options.
 7. Keep the new private graphics report and logs. Check existing account/configuration/history,
