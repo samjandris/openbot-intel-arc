@@ -14,12 +14,10 @@ EXPECTED_RESOLVER = '''function resolveLinuxGpuMode(input) {
   if (input.server) return { hardwareAcceleration: false, reason: "server" };
   if (input.disableGpu === "1") return { hardwareAcceleration: false, reason: "environment-off" };
   if (input.disableGpu === "0") return { hardwareAcceleration: true, reason: "environment-on" };
-  if (input.crash?.chromium === input.chromiumMajor) {
+  if (input.crash?.chromium === input.chromiumMajor)
     return { hardwareAcceleration: false, reason: "gpu-process-crash" };
-  }
-  if (input.unfinishedStart?.chromium === input.chromiumMajor) {
+  if (input.unfinishedStart?.chromium === input.chromiumMajor)
     return { hardwareAcceleration: false, reason: "unfinished-start" };
-  }
   return { hardwareAcceleration: true, reason: "default" };
 }'''
 

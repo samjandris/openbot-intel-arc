@@ -29,7 +29,8 @@ jobs:
           printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
           trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
           docker pull "$image@$DIGEST"
-          test "$(docker image inspect -f '{{index .Config.Labels "io.openbot.graphics.patch.version"}}' "$image@$DIGEST")" = 1
+          # Accept the previous encoder-only image too, so a failed graphics rollout can restore it.
+          test "$(docker image inspect -f '{{index .Config.Labels "io.openbot.a380.extension.version"}}' "$image@$DIGEST")" = 1
           docker tag "$image@$DIGEST" "$image:unraid"
           docker push "$image:unraid"
           echo "Promoted $image@$DIGEST to :unraid" >> "$GITHUB_STEP_SUMMARY"
