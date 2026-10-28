@@ -37,6 +37,9 @@ export function configureOpenBotServerGraphics(app, options, mode) {
     // compatibility decision; keep driver workarounds and every sandbox protection intact.
     app.commandLine.appendSwitch('use-vulkan', 'native');
     app.commandLine.appendSwitch('disable-vulkan-surface');
+    const features = app.commandLine.getSwitchValue('enable-features').split(',').filter(Boolean);
+    if (!features.includes('Vulkan')) features.push('Vulkan');
+    app.commandLine.appendSwitch('enable-features', features.join(','));
   }
   void app.whenReady().then(async () => {
     const directory = await mkdtemp('/tmp/openbot-graphics-');
