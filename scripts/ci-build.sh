@@ -12,7 +12,7 @@ task_base=$(docker image inspect "$task_base_tag" --format '{{index .RepoDigests
 task_context=$(mktemp -d)
 trap 'rm -rf -- "$task_context"' EXIT
 mkdir "$task_context/scripts"
-for task_file in Dockerfile .dockerignore scripts/gpu-test.sh scripts/video-encode.sh; do
+for task_file in Dockerfile .dockerignore scripts/gpu-test.sh scripts/video-encode.sh scripts/patch-graphics.py scripts/graphics-runtime.mjs; do
   [[ -f $task_repo/$task_file && ! -L $task_repo/$task_file ]] || exit 1
   cp -- "$task_repo/$task_file" "$task_context/$task_file"
 done
@@ -41,6 +41,9 @@ docker run --rm --network none --entrypoint /bin/bash openbot-a380-ci -euc '
   test -x /usr/local/bin/openbot-gpu-test
   test -x /usr/local/bin/openbot-video-encode
   test -z "${LIBVA_DRIVER_NAME:-}"
+  test "$OPENBOT_SERVER_GPU" = 1
+  test -s /usr/share/vulkan/icd.d/intel_icd.x86_64.json
+  test -s /usr/local/lib/openbot-graphics/runtime.mjs
   ffmpeg -hide_banner -encoders 2>/dev/null | grep -q h264_vaapi
   bash -n /usr/local/bin/openbot-gpu-test /usr/local/bin/openbot-video-encode
   dpkg-query -W ffmpeg vainfo intel-media-va-driver-non-free
@@ -49,4 +52,6 @@ docker run --rm --network none --entrypoint /bin/bash openbot-a380-ci -euc '
   fi
   grep -q "Required render device is missing" /tmp/no-device.log
 '
+docker run --rm --network none --entrypoint cat openbot-a380-ci /usr/local/share/openbot-graphics/policy.json >"$task_context/policy.json"
+node "$task_repo/scripts/test-graphics-policy.mjs" "$task_context/policy.json"
 printf 'Validated derived image from %s. GPU encoding requires the Unraid hardware test.\n' "$task_base"

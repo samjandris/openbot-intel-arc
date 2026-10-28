@@ -1,0 +1,35 @@
+name: Promote a reviewed image digest
+on:
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: 'Exact sha256 digest of a reviewed candidate'
+        type: string
+        required: true
+concurrency:
+  group: openbot-a380-image
+  cancel-in-progress: false
+permissions:
+  contents: read
+  packages: write
+jobs:
+  promote:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Promote the exact image without rebuilding
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
+          REGISTRY_USER: ${{ github.actor }}
+          DIGEST: ${{ inputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          docker pull "$image@$DIGEST"
+          test "$(docker image inspect -f '{{index .Config.Labels "io.openbot.graphics.patch.version"}}' "$image@$DIGEST")" = 1
+          docker tag "$image@$DIGEST" "$image:unraid"
+          docker push "$image:unraid"
+          echo "Promoted $image@$DIGEST to :unraid" >> "$GITHUB_STEP_SUMMARY"

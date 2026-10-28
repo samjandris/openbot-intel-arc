@@ -68,3 +68,26 @@ browser profiles, backups, or deployment logs belong in this repository.
 References: [official OpenBot 0.52.1 Docker documentation](https://github.com/nightly-labs/openbot/blob/v0.52.1/docs/docker.md),
 [Intel media driver](https://github.com/intel/media-driver),
 [GHCR authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
+# Browser graphics candidate
+
+The Linux image has an explicit `OPENBOT_SERVER_GPU=1` opt-in. The extension adjusts only the
+released server-mode input to the existing GPU policy. `OPENBOT_DISABLE_GPU=1`, GPU crash records
+and unfinished-start records still select software rendering. The patch fails the build when the
+upstream policy or expected configuration changes. It retains the original Electron binary, fuses,
+entrypoint and sandbox. No host driver, primary DRM device or Docker socket is needed.
+
+ANGLE uses Vulkan through the container's Intel Mesa driver. The X11 displays stay in place.
+The image does not force Chromium's native Vulkan compositor or bypass driver blocklists.
+Hardware operation must be checked on the target GPU; software CI cannot certify it.
+
+Each opted-in startup writes a private GPU feature report in a newly created
+`/tmp/openbot-graphics-*/report.json`. `OPENBOT_GPU_SELF_TEST=1` additionally runs a transient browser
+fixture in an in-memory partition. It checks Intel rendering, GPU compositing, WebGL, text input,
+navigation, a green WebGL screenshot and CDP JPEG capture. It opens no remote debug port and reads
+no existing browser profile. These reports and images must stay private.
+
+New builds publish immutable `VERSION-graphics.1-RUN-ATTEMPT` candidate tags. Until the repository
+variable `GRAPHICS_ROLLING_APPROVED=true` is set, builds leave `:unraid` unchanged. The separate
+promotion workflow moves an exact reviewed digest to `:unraid` without rebuilding. Enable rolling
+publication only after target-machine validation. Daily upstream stable-release checks continue;
+an incompatible patch fails the build and leaves the last published deployment tag intact.

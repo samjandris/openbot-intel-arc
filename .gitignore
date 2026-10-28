@@ -17,6 +17,10 @@ scripts/*
 !scripts/create-request.jq
 !scripts/update-template.php
 !scripts/test-transforms.sh
+!scripts/patch-graphics.py
+!scripts/graphics-runtime.mjs
+!scripts/test-graphics-policy.mjs
+!scripts/test-graphics-patch.py
 !validation/
 validation/*
 !validation/RESULTS.md
@@ -26,3 +30,4 @@ validation/*
 !.github/workflows/
 .github/workflows/*
 !.github/workflows/image.yml
+!.github/workflows/promote.yml

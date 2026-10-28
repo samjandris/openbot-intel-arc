@@ -4,3 +4,5 @@
 !scripts/
 !scripts/gpu-test.sh
 !scripts/video-encode.sh
+!scripts/patch-graphics.py
+!scripts/graphics-runtime.mjs
