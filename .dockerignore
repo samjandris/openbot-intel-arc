@@ -1,0 +1,6 @@
+**
+!Dockerfile
+!.dockerignore
+!scripts/
+!scripts/gpu-test.sh
+!scripts/video-encode.sh

@@ -1,0 +1,82 @@
+name: Build validated OpenBot A380 image
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '9 5 * * *'
+  workflow_dispatch:
+    inputs:
+      upstream_version:
+        description: 'Stable upstream version (blank uses policy below)'
+        type: string
+        default: ''
+
+concurrency:
+  group: openbot-a380-image
+  cancel-in-progress: false
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Enable after the initial pinned 0.52.1 deployment passes A380 validation.
+    if: github.event_name != 'schedule' || vars.TRACK_UPSTREAM_STABLE == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Choose stable upstream release
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_VERSION: ${{ inputs.upstream_version }}
+          TRACK_UPSTREAM_STABLE: ${{ vars.TRACK_UPSTREAM_STABLE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${REQUESTED_VERSION:-}"
+          if [[ -z "$version" && "$TRACK_UPSTREAM_STABLE" == true ]]; then
+            release=$(gh api repos/nightly-labs/openbot/releases/latest)
+            test "$(jq -r '.draft or .prerelease' <<<"$release")" = false
+            version=$(jq -r .tag_name <<<"$release")
+            version=${version#v}
+          elif [[ -z "$version" ]]; then
+            version=$(cat upstream-version.txt)
+          fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Validate configuration transforms and shell syntax
+        run: bash scripts/test-transforms.sh
+      - name: Build from official digest and validate software
+        env:
+          UPSTREAM_VERSION: ${{ steps.upstream.outputs.version }}
+        run: bash scripts/ci-build.sh "$UPSTREAM_VERSION"
+      - name: Publish immutable image, then rolling Unraid tag
+        if: github.event_name != 'pull_request'
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
+          REGISTRY_USER: ${{ github.actor }}
+          UPSTREAM_VERSION: ${{ steps.upstream.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          immutable="$UPSTREAM_VERSION-a380.1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          docker tag openbot-a380-ci "$image:$immutable"
+          docker push "$image:$immutable"
+          docker tag openbot-a380-ci "$image:unraid"
+          docker push "$image:unraid"
+          {
+            echo "Image: $image:$immutable"
+            echo "Rolling tag: $image:unraid"
+            echo "Upstream version: $UPSTREAM_VERSION"
+            echo "Software checks passed. No GPU runner: A380 hardware validation is performed on Unraid."
+            docker image inspect "$image:$immutable" --format '{{json .RepoDigests}}'
+          } >> "$GITHUB_STEP_SUMMARY"
