@@ -28,11 +28,11 @@ docker image inspect openbot-a380-ci "$task_base" --format \
   echo 'Derived image must retain the openbot user.' >&2; exit 1;
 }
 [[ $(docker image inspect -f '{{json .Config.Entrypoint}}' openbot-a380-ci) == \
-   $(docker image inspect -f '{{json .Config.Entrypoint}}' "$task_base") ]] || {
+   "$(docker image inspect -f '{{json .Config.Entrypoint}}' "$task_base")" ]] || {
   echo 'Derived image entrypoint differs from upstream.' >&2; exit 1;
 }
 [[ $(docker image inspect -f '{{json .Config.Cmd}}' openbot-a380-ci) == \
-   $(docker image inspect -f '{{json .Config.Cmd}}' "$task_base") ]] || {
+   "$(docker image inspect -f '{{json .Config.Cmd}}' "$task_base")" ]] || {
   echo 'Derived image command differs from upstream.' >&2; exit 1;
 }
 docker run --rm --network none --entrypoint /bin/bash openbot-a380-ci -euc '
