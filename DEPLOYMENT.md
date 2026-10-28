@@ -115,4 +115,8 @@ identified on the target machine. Do not add a primary DRM device, privileged mo
    Restore the data archive only if required; first preserve the current data directory separately.
 
 Reports, profiles, inspect output, keyrings and data backups must never enter Git or CI artifacts.
-
+If the Docker tab cannot restore the image, the host-side emergency command is
+`bash scripts/rollback-graphics.sh VERIFIED_BACKUP_DIRECTORY PINNED_LOCAL_IMAGE_TAG`.
+It checks the pinned image against the saved image ID, restores the complete saved configuration,
+pins the managed template to that local image and retains the current data. It does not change
+global autostart or updater settings. Restore the public rolling tag separately before resuming it.
