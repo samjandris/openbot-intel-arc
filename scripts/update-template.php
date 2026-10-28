@@ -12,10 +12,7 @@ if (str_contains($extra, '--device') || str_contains($extra, '--group-add')) {
 if (!str_contains($extra, '--security-opt=seccomp=/mnt/user/appdata/openbot/seccomp.json') ||
     !str_contains($extra, '--security-opt=no-new-privileges:true')) exit(1);
 $xml->Repository = $image;
-$xml->ExtraParams = $extra . ' --group-add=' . $gid;
-$config = $xml->addChild('Config', $device);
-foreach (['Name'=>'Intel Arc A380 render device','Target'=>$device,'Default'=>$device,'Mode'=>'rw',
-          'Description'=>'Agent video encoding through VA-API; identified as PCI 0000:2b:00.0.',
-          'Type'=>'Device','Display'=>'always','Required'=>'true','Mask'=>'false'] as $k=>$v) $config->addAttribute($k,$v);
+// Unraid 7.3.4 ignores Mode for Type=Device; explicit CLI mode preserves rw.
+$xml->ExtraParams = $extra . ' --device=' . $device . ':' . $device . ':rw --group-add=' . $gid;
 if ($xml->asXML($output) === false) exit(1);
 chmod($output, 0600);

@@ -33,8 +33,8 @@ php -r '
   assert(str_contains((string)$x->ExtraParams,"--group-add=18"));
   assert(str_contains((string)$x->ExtraParams,"--security-opt=no-new-privileges:true"));
   assert((string)$x->Config[0] === "/example/data");
-  assert((string)$x->Config[1]["Type"] === "Device");
-  assert((string)$x->Config[1] === "/dev/dri/renderD128");
+  assert(str_contains((string)$x->ExtraParams,"--device=/dev/dri/renderD128:/dev/dri/renderD128:rw"));
+  assert(count($x->Config) === 1);
 ' -d zend.assertions=1 -d assert.exception=1 "$task_tmp/proposed.xml"
 if php "$task_repo/scripts/update-template.php" "$task_tmp/proposed.xml" "$task_tmp/duplicate.xml" image /dev/dri/renderD128 18 2>/dev/null; then
   echo 'Duplicate group/device settings should require review.' >&2; exit 1
