@@ -5,6 +5,17 @@ import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
+async function deadline(promise, milliseconds, label) {
+  let timer;
+  try {
+    return await Promise.race([promise, new Promise((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error(label + ' timeout')), milliseconds);
+    })]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function configureOpenBotServerGraphics(app, options, mode) {
   if (!options.server || process.env.OPENBOT_SERVER_GPU !== '1') return;
   if (mode.hardwareAcceleration) {
@@ -18,7 +29,7 @@ export function configureOpenBotServerGraphics(app, options, mode) {
     try {
       await delay(1500);
       report.features = app.getGPUFeatureStatus();
-      const info = await app.getGPUInfo('complete');
+      const info = await deadline(app.getGPUInfo('complete'), 10000, 'GPU information');
       report.devices = info.gpuDevice;
       report.attributes = info.auxAttributes;
       if (process.env.OPENBOT_GPU_SELF_TEST === '1') report.browser = await browserCheck(directory);
@@ -56,12 +67,14 @@ async function browserCheck(directory) {
     response.setHeader('Cache-Control', 'no-store');
     response.end(request.url.startsWith('/second?') ? '<!doctype html><title>second</title><p id="result">navigation passed</p>' : fixture);
   });
-  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+  server.unref();
   let window;
   let view;
   let frames = 0;
   let navigation;
   try {
+    return await deadline((async () => {
+    await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
     window = new BrowserWindow({ width: 640, height: 480, show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
     view = new WebContentsView({ webPreferences: {
       sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true,
@@ -114,9 +127,12 @@ async function browserCheck(directory) {
     }
     return { renderer, animationFrames, jpegFrames: frames, screenshotSize: size, greenPixel: pixel, input: true, navigation: true,
       sandbox: preferences.sandbox, contextIsolation: preferences.contextIsolation, nodeIntegration: preferences.nodeIntegration, webSecurity: preferences.webSecurity };
+    })(), 25000, 'Browser validation');
   } finally {
+    if (view && !view.webContents.isDestroyed() && view.webContents.debugger.isAttached()) view.webContents.debugger.detach();
     if (view && !view.webContents.isDestroyed()) view.webContents.close();
     if (window && !window.isDestroyed()) window.destroy();
-    await new Promise(resolve => server.close(resolve));
+    server.closeAllConnections();
+    await deadline(new Promise(resolve => server.close(resolve)), 2000, 'Fixture cleanup').catch(() => {});
   }
 }
