@@ -25,7 +25,7 @@ COPY --chmod=0644 scripts/graphics-runtime.mjs /usr/local/lib/openbot-graphics/r
 LABEL io.openbot.a380.extension.version="1" \
       io.openbot.a380.scope="agent video-processing and opt-in browser graphics" \
       io.openbot.graphics.patch.version="1"
-ENV OPENBOT_SERVER_GPU=1
+ENV OPENBOT_SERVER_GPU=1 OPENBOT_GPU_SELF_TEST=1
 # Keep all upstream entrypoint, command, workdir, volume and sandbox behavior.
 # LIBVA_DRIVER_NAME is intentionally scoped to individual video commands.
 USER openbot

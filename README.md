@@ -83,10 +83,10 @@ workarounds and the sandbox stay in place. Hardware operation must be checked on
 software CI cannot certify it. Another or missing render device selects software rendering.
 
 Each opted-in startup writes a private GPU feature report in a newly created
-`/tmp/openbot-graphics-*/report.json`. `OPENBOT_GPU_SELF_TEST=1` additionally runs a transient browser
+`/tmp/openbot-graphics-*/report.json`. The default `OPENBOT_GPU_SELF_TEST=1` runs a transient browser
 fixture in an in-memory partition. It checks Intel rendering, GPU compositing, WebGL, text input,
 navigation, a green WebGL screenshot and CDP JPEG capture. It opens no remote debug port and reads
-no existing browser profile. These reports and images must stay private.
+no existing browser profile. Set it to `0` to skip the fixture. These reports and images must stay private.
 
 New builds publish immutable `VERSION-graphics.1-RUN-ATTEMPT` candidate tags. Until the repository
 variable `GRAPHICS_ROLLING_APPROVED=true` is set, builds leave `:unraid` unchanged. The separate
