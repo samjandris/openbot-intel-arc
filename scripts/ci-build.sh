@@ -35,14 +35,15 @@ docker image inspect openbot-a380-ci "$task_base" --format \
    "$(docker image inspect -f '{{json .Config.Cmd}}' "$task_base")" ]] || {
   echo 'Derived image command differs from upstream.' >&2; exit 1;
 }
-docker run --rm --network none --entrypoint /bin/bash openbot-a380-ci -euc '
+docker run --rm --network none --entrypoint /bin/bash openbot-a380-ci -euxc '
   test "$(id -u):$(id -g)" = 1000:1000
   test -s /usr/lib/x86_64-linux-gnu/dri/iHD_drv_video.so
   test -x /usr/local/bin/openbot-gpu-test
   test -x /usr/local/bin/openbot-video-encode
   test -z "${LIBVA_DRIVER_NAME:-}"
   test "$OPENBOT_SERVER_GPU" = 1
-  test -s /usr/share/vulkan/icd.d/intel_icd.x86_64.json
+  test -s /usr/lib/x86_64-linux-gnu/libvulkan_intel.so
+  test -s /usr/share/vulkan/icd.d/intel_icd.json || test -s /usr/share/vulkan/icd.d/intel_icd.x86_64.json
   test -s /usr/local/lib/openbot-graphics/runtime.mjs
   ffmpeg -hide_banner -encoders 2>/dev/null | grep -q h264_vaapi
   bash -n /usr/local/bin/openbot-gpu-test /usr/local/bin/openbot-video-encode
