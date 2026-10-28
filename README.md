@@ -77,8 +77,10 @@ upstream policy or expected configuration changes. It retains the original Elect
 entrypoint and sandbox. No host driver, primary DRM device or Docker socket is needed.
 
 ANGLE uses Vulkan through the container's Intel Mesa driver. The X11 displays stay in place.
-The image does not force Chromium's native Vulkan compositor or bypass driver blocklists.
-Hardware operation must be checked on the target GPU; software CI cannot certify it.
+The explicit A380 opt-in selects Chromium's native Vulkan compositor with pixel-copy presentation.
+This forces its Vulkan compatibility decision only for the expected Intel device; driver
+workarounds and the sandbox stay in place. Hardware operation must be checked on the target GPU;
+software CI cannot certify it. Another or missing render device selects software rendering.
 
 Each opted-in startup writes a private GPU feature report in a newly created
 `/tmp/openbot-graphics-*/report.json`. `OPENBOT_GPU_SELF_TEST=1` additionally runs a transient browser

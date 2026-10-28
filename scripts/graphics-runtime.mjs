@@ -1,6 +1,7 @@
 // Linux server extension. No listening debug port, profile import, or sandbox changes.
 import { BrowserWindow, WebContentsView } from 'electron';
 import { mkdtemp, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -18,28 +19,42 @@ async function deadline(promise, milliseconds, label) {
 
 export function configureOpenBotServerGraphics(app, options, mode) {
   if (!options.server || process.env.OPENBOT_SERVER_GPU !== '1') return;
+  let renderDevice;
+  try {
+    renderDevice = {
+      vendor: readFileSync('/sys/class/drm/renderD128/device/vendor', 'utf8').trim(),
+      device: readFileSync('/sys/class/drm/renderD128/device/device', 'utf8').trim(),
+    };
+  } catch { /* A missing target selects software, without changing device permissions. */ }
+  if (mode.hardwareAcceleration && (renderDevice?.vendor !== '0x8086' || renderDevice?.device !== '0x56a5')) {
+    mode.hardwareAcceleration = false;
+    mode.reason = 'render-device-mismatch';
+  }
   if (mode.hardwareAcceleration) {
     app.commandLine.appendSwitch('use-gl', 'angle');
     app.commandLine.appendSwitch('use-angle', 'vulkan');
-    // Keep Chromium's compositor, driver workarounds and Vulkan blocklist policy.
+    // This scoped A380 setting selects Chromium's Vulkan compositor. It forces Vulkan's
+    // compatibility decision; keep driver workarounds and every sandbox protection intact.
+    app.commandLine.appendSwitch('use-vulkan', 'native');
+    app.commandLine.appendSwitch('disable-vulkan-surface');
   }
   void app.whenReady().then(async () => {
     const directory = await mkdtemp('/tmp/openbot-graphics-');
-    const report = { mode, uid: process.getuid(), electron: process.versions.electron, directory };
+    const report = { mode, renderDevice, uid: process.getuid(), electron: process.versions.electron, directory };
     try {
       await delay(1500);
+      if (process.env.OPENBOT_GPU_SELF_TEST === '1') report.browser = await browserCheck(directory);
       report.features = app.getGPUFeatureStatus();
       const info = await deadline(app.getGPUInfo('complete'), 10000, 'GPU information');
       report.devices = info.gpuDevice;
       report.attributes = info.auxAttributes;
-      if (process.env.OPENBOT_GPU_SELF_TEST === '1') report.browser = await browserCheck(directory);
       report.status = mode.hardwareAcceleration ? 'reported' : 'software-fallback';
       if (report.browser) {
-        const intel = report.devices?.some(device => device.vendorId === 0x8086 && device.deviceId === 0x56a5);
-        if (!intel || !/Intel/i.test(report.browser.renderer) || /SwiftShader|llvmpipe|lavapipe/i.test(report.browser.renderer)) {
+        const intel = renderDevice?.vendor === '0x8086' && renderDevice?.device === '0x56a5';
+        if (!intel || !/Intel/i.test(report.browser.renderer) || !/A380|DG2|0x0*56a5/i.test(report.browser.renderer) || /SwiftShader|llvmpipe|lavapipe/i.test(report.browser.renderer)) {
           throw new Error('The browser did not use the Intel Arc A380 renderer');
         }
-        if (report.features.gpu_compositing !== 'enabled' || report.features.webgl !== 'enabled') {
+        if (report.features.gpu_compositing !== 'enabled' || !report.features.webgl?.startsWith('enabled')) {
           throw new Error('GPU compositing or WebGL is not hardware enabled');
         }
         report.status = 'pass';
