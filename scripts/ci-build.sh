@@ -22,11 +22,19 @@ docker build --platform linux/amd64 --build-arg "BASE_IMAGE=$task_base" \
   --label "io.openbot.a380.upstream.version=$task_version" \
   --label "io.openbot.a380.upstream.digest=${task_base#*@}" \
   --tag openbot-a380-ci "$task_context"
-[[ $(docker image inspect -f '{{.Config.User}}' openbot-a380-ci) == openbot ]]
+docker image inspect openbot-a380-ci "$task_base" --format \
+  'image={{.Id}} user={{.Config.User}} entrypoint={{json .Config.Entrypoint}} cmd={{json .Config.Cmd}}'
+[[ $(docker image inspect -f '{{.Config.User}}' openbot-a380-ci) == openbot ]] || {
+  echo 'Derived image must retain the openbot user.' >&2; exit 1;
+}
 [[ $(docker image inspect -f '{{json .Config.Entrypoint}}' openbot-a380-ci) == \
-   $(docker image inspect -f '{{json .Config.Entrypoint}}' "$task_base") ]]
+   $(docker image inspect -f '{{json .Config.Entrypoint}}' "$task_base") ]] || {
+  echo 'Derived image entrypoint differs from upstream.' >&2; exit 1;
+}
 [[ $(docker image inspect -f '{{json .Config.Cmd}}' openbot-a380-ci) == \
-   $(docker image inspect -f '{{json .Config.Cmd}}' "$task_base") ]]
+   $(docker image inspect -f '{{json .Config.Cmd}}' "$task_base") ]] || {
+  echo 'Derived image command differs from upstream.' >&2; exit 1;
+}
 docker run --rm --network none --entrypoint /bin/bash openbot-a380-ci -euc '
   test "$(id -u):$(id -g)" = 1000:1000
   test -s /usr/lib/x86_64-linux-gnu/dri/iHD_drv_video.so
